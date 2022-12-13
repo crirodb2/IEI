@@ -3,7 +3,6 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 import poblacionBD as p
 import os
-import time
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
@@ -110,6 +109,9 @@ def CambiarTipoGVA(centro: str):
 def CargarIB():
     with open('Baleares.json', "r") as f:
         data = json.load(f)
+    
+    for element in data:
+        element["funcio"] = CambiarTipoIB(element["funcio"])
         
     i=0
     for element in data:
@@ -125,19 +127,10 @@ def CargarIB():
         )
 
         cp = None
-        tlf = None
 
         try:
             cp=ObtenerCP(element["adreca"]+" "+element["municipi"])
-        except Exception: print("Error al obtener el código postal de " + element["nom"])
-
-        try:
-            tlf=ObtenerTelefonosIB(element["nom"], element["funcio"])
-        except Exception: print("Error al obtener el teléfono de " + element["nom"])
-
-        for element in data:
-            element["funcio"] = CambiarTipoIB(element["funcio"])
-
+        except Exception: next
         try:
             p.AddCentro(
                 element["nom"],
@@ -146,7 +139,7 @@ def CargarIB():
                 cp,
                 element["long"],
                 element["lat"],
-                tlf,
+                None,
                 "Disponible",
                 p.getLocalidad(element["municipi"])[0]
             )
@@ -159,13 +152,13 @@ def CambiarTipoIB(centro: str):
     elif(centro == "CENTRE SANITARI PREVIST"): return "Otros"
     else: return "Hospital"
 
-
-
 def ObtenerLatLon(direccion: str):
     geoDisabled = webdriver.FirefoxOptions()
 
     geoDisabled.set_preference("geo.enabled", False)
     driver = webdriver.Firefox(options=geoDisabled)
+
+    driver.implicitly_wait(3)
 
     driver.get("https://www.map-gps-coordinates.com")
 
@@ -194,6 +187,7 @@ def ObtenerCP(direccion: str):
 
     geoDisabled.set_preference("geo.enabled", False)
     driver = webdriver.Firefox(options=geoDisabled)
+    driver.implicitly_wait(2)
 
     driver.get("https://worldpostalcode.com/")
 
@@ -218,52 +212,6 @@ def ObtenerCP(direccion: str):
 
     return cp
 
-
-def ObtenerTelefonosIB(nombre: str, tipo: str):
-    geoDisabled = webdriver.FirefoxOptions()
-    geoDisabled.set_preference("geo.enabled", False)
-
-    driver = webdriver.Firefox(options=geoDisabled)
-
-    if(tipo == "UNITAT BÀSICA"):
-        driver.get("https://www.ibsalut.es/es/servicio-de-salud/recursos-y-centros-sanitarios/centros-sanitarios/unidades-basicas-de-salud-ubs")
-
-        elem = driver.find_element(By.CSS_SELECTOR, '#cs-ubs_filter > label:nth-child(1) > input:nth-child(1)')
-
-        elem.send_keys(nombre)
-
-        time.sleep(1)
-
-        l = driver.find_element(By.CSS_SELECTOR,".odd > td:nth-child(1)")
-        
-        #links = l.get_attribute('href')
-
-        return l
-
-        driver.get(links)
-
-        tlf = driver.find_element(By.CSS_SELECTOR, 'div.col-md-6:nth-child(1) > p:nth-child(4)').text
-
-        driver.quit()
-
-        return tlf
-
-
-def ObtenerTelefonosGVA(nombre: str):
-    driver = webdriver.Firefox()
-    
-    nombre=nombre.replace(" ", "%20")
-
-    driver.get("https://www.google.com/search?q=" + nombre)
-
-    tlf = driver.find_element(By.CSS_SELECTOR, '#tsuid_25 > div > div > div > a > div > div > div:nth-child(3)').text
-
-    driver.quit()
-
-    return tlf
-
-#CargarEUS()
-#CargarGVA()
-#CargarIB()
-
-print(ObtenerTelefonosGVA("HOSPITAL DE SAGUNTO"))
+CargarEUS()
+CargarGVA()
+CargarIB()
